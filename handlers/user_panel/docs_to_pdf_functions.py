@@ -1,13 +1,15 @@
-from aiogram import F, types, Router, Bot
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, FSInputFile
-import asyncio
 from handlers.user_panel.start_functions import send_welcome_message
-from keyboard.inline import InlineKeyboardBuilder
 from filter.chat_types import ChatTypeFilter
 from aiogram import Bot, types
-
+from aiogram import Router, Bot, F, types
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import InputFile
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+import os
+import asyncio
+from docx2pdf import convert
 
 docs_to_pdf_private_router = Router()
 docs_to_pdf_private_router.message.filter(ChatTypeFilter(['private']))
@@ -49,6 +51,22 @@ async def docs_to_pdf_process(message: types.Message, state: FSMContext, bot: Bo
         # Проверка формата файла
         file_extension = message.document.file_name.split('.')[-1].lower()
         if file_extension in ["doc", "docx", "txt"]:
+
+            file_path = f"downloads/{message.document.file_name}"
+            os.makedirs("downloads", exist_ok=True)
+
+            # Скачиваем файл через Bot
+            file = await bot.get_file(message.document.file_id)
+            await bot.download(file.file_path, destination=file_path)
+            pdf_path = file_path.replace(f".{file_extension}", ".pdf")
+            convert(file_path, pdf_path)
+
+                # Отправляем PDF файл пользователю
+            await bot.send_document(
+                    chat_id=message.chat.id,
+                    document=InputFile(pdf_path),
+                    caption="Ваш файл успешно преобразован в PDF! 📄"
+                )
             user_data = await state.get_data()
             message_id = user_data.get("message_id")
 
